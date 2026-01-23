@@ -145,23 +145,14 @@ website_route_rules = [{'from_route': '/portal/<path:app_path>', 'to_route': 'po
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"employee_portal.tasks.all"
-# 	],
-# 	"daily": [
-# 		"employee_portal.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"employee_portal.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"employee_portal.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"employee_portal.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+    # "daily": [
+    # 	"employee_portal.tasks.daily"
+    # ],
+    "hourly": [
+        "employee_portal.auto_checkout.auto_checkout_employees"
+    ],
+}
 
 # Testing
 # -------
@@ -201,7 +192,7 @@ website_route_rules = [{'from_route': '/portal/<path:app_path>', 'to_route': 'po
 
 # Request Events
 # ----------------
-# before_request = ["employee_portal.utils.before_request"]
+before_request = ["employee_portal.request_hooks.check_portal_restriction"]
 # after_request = ["employee_portal.utils.after_request"]
 
 # Job Events

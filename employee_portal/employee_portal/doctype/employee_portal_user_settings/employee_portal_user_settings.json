@@ -1,0 +1,122 @@
+{
+    "actions": [],
+    "allow_rename": 1,
+    "autoname": "field:user",
+    "creation": "2026-01-22 11:19:47.142710",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "user",
+        "enable_attendance",
+        "enable_attendance_card",
+        "enable_expense_claim",
+        "enable_petty_cash",
+        "petty_cash_account",
+        "enable_leave",
+        "restrict_to_portal"
+    ],
+    "fields": [
+        {
+            "fieldname": "user",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "User",
+            "options": "User",
+            "reqd": 1,
+            "unique": 1
+        },
+        {
+            "default": "1",
+            "fieldname": "enable_attendance",
+            "fieldtype": "Check",
+            "in_list_view": 1,
+            "label": "Enable Attendance"
+        },
+        {
+            "default": "1",
+            "fieldname": "enable_attendance_card",
+            "fieldtype": "Check",
+            "in_list_view": 1,
+            "label": "Show Attendance Card"
+        },
+        {
+            "default": "1",
+            "fieldname": "enable_expense_claim",
+            "fieldtype": "Check",
+            "in_list_view": 1,
+            "label": "Enable Expense Claim"
+        },
+        {
+            "default": "1",
+            "fieldname": "enable_petty_cash",
+            "fieldtype": "Check",
+            "in_list_view": 1,
+            "label": "Enable Petty Cash"
+        },
+        {
+            "depends_on": "enable_petty_cash",
+            "fieldname": "petty_cash_account",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Petty Cash Account",
+            "mandatory_depends_on": "enable_petty_cash",
+            "options": "Account"
+        },
+        {
+            "default": "1",
+            "fieldname": "enable_leave",
+            "fieldtype": "Check",
+            "in_list_view": 1,
+            "label": "Enable Leave Application"
+        },
+        {
+            "allow_on_submit": 1,
+            "default": "0",
+            "fieldname": "restrict_to_portal",
+            "fieldtype": "Check",
+            "in_list_view": 1,
+            "label": "Restrict to Portal"
+        }
+    ],
+    "grid_page_length": 50,
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2026-01-22 11:40:47.455734",
+    "modified_by": "Administrator",
+    "module": "Employee Portal",
+    "name": "Employee Portal User Settings",
+    "naming_rule": "By fieldname",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "HR Manager",
+            "share": 1,
+            "write": 1
+        }
+    ],
+    "row_format": "Dynamic",
+    "rows_threshold_for_grid_search": 20,
+    "sort_field": "creation",
+    "sort_order": "DESC",
+    "states": []
+}
