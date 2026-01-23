@@ -67,7 +67,7 @@
                 <div class="sm:flex">
                    <p class="flex items-center text-sm text-gray-500">
                     <DollarSign class="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                    {{ formatCurrency(expense.total_claimed_amount) }}
+                    {{ formatCurrency(expense.total_claimed_amount + (expense.total_vat_amount || 0)) }}
                   </p>
                   <p class="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
                     <Calendar class="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
@@ -124,7 +124,7 @@ const fetchExpenses = async () => {
                 employee: session.employee.name,
                 docstatus: ['<', 2] // Exclude Cancelled (2) from DB fetch
             },
-            fields: ['name', 'posting_date', 'total_claimed_amount', 'docstatus', 'workflow_state'],
+            fields: ['name', 'posting_date', 'total_claimed_amount', 'total_vat_amount', 'docstatus', 'workflow_state'],
             order_by: 'creation desc',
             limit_page_length: 100
         }
@@ -145,6 +145,11 @@ const deleteExpense = async (name) => {
             url: 'employee_portal.api.delete_expense_claim',
             params: { name }
         }).fetch()
+        
+        // Optimistic update: Remove from local list immediately
+        allExpenses.value = allExpenses.value.filter(e => e.name !== name)
+        
+        // Background re-fetch to ensure sync
         fetchExpenses()
     } catch (e) {
         console.error(e)
@@ -152,7 +157,7 @@ const deleteExpense = async (name) => {
     }
 }
 
-const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'AED' }).format(val)
+const formatCurrency = (val) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val)
 
 onMounted(() => {
     if (session.initialized && session.employee) {

@@ -35,19 +35,29 @@
                     <label class="block text-sm font-medium text-gray-700">Posting Date</label>
                     <input type="date" v-model="form.posting_date" :disabled="isSubmitted" class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md disabled:bg-gray-100 disabled:text-gray-500">
                 </div>
-                 <div class="sm:col-span-2">
+                <div class="sm:col-span-2">
                     <label class="block text-sm font-medium text-gray-700">Cost Center</label>
-                    <select v-model="form.cost_center" :disabled="isSubmitted" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500">
-                        <option value="" disabled>Select Cost Center</option>
-                        <option v-for="cc in costCenters" :key="cc.name" :value="cc.name">{{ cc.name }}</option>
-                    </select>
+                    <div class="mt-1">
+                        <Autocomplete
+                            :options="costCenters"
+                            v-model="costCenterQuery"
+                            @update:modelValue="handleCostCenterSelect"
+                            placeholder="Select Cost Center"
+                            :disabled="isSubmitted"
+                        />
+                    </div>
                 </div>
                  <div class="sm:col-span-2">
                     <label class="block text-sm font-medium text-gray-700">Project</label>
-                    <select v-model="form.project" :disabled="isSubmitted" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500">
-                        <option value="">Select Project (Optional)</option>
-                        <option v-for="proj in projects" :key="proj.name" :value="proj.name">{{ proj.project_name || proj.name }}</option>
-                    </select>
+                    <div class="mt-1">
+                        <Autocomplete
+                            :options="projects"
+                            v-model="projectQuery"
+                            @update:modelValue="handleProjectSelect"
+                            placeholder="Select Project"
+                            :disabled="isSubmitted"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -78,10 +88,10 @@
                                     </select>
                                 </td>
                                 <td class="px-3 py-2 align-top">
-                                    <input type="number" step="0.01" v-model="row.amount" :disabled="isSubmitted" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md disabled:bg-gray-100 disabled:text-gray-500" placeholder="0.00" />
+                                    <input type="number" step="0.01" min="0" v-model="row.amount" @keydown="preventInvalidInput" :disabled="isSubmitted" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md disabled:bg-gray-100 disabled:text-gray-500" placeholder="0.00" />
                                 </td>
                                  <td class="px-3 py-2 align-top">
-                                    <input type="number" step="0.01" v-model="row.vat_amount" :disabled="isSubmitted" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md disabled:bg-gray-100 disabled:text-gray-500" placeholder="0.00" />
+                                    <input type="number" step="0.01" min="0" v-model="row.vat_amount" @keydown="preventInvalidInput" :disabled="isSubmitted" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md disabled:bg-gray-100 disabled:text-gray-500" placeholder="0.00" />
                                 </td>
                                 <td class="px-3 py-2 align-top">
                                     <textarea v-model="row.description" rows="1" :disabled="isSubmitted" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md resize-y disabled:bg-gray-100 disabled:text-gray-500"></textarea>
@@ -144,6 +154,17 @@
                  <p class="text-gray-600">Are you sure you want to submit this expense claim? Once submitted, it will be sent for approval.</p>
              </template>
         </Dialog>
+
+        <!-- File Attachments Section (only when document is saved) -->
+        <FileAttachments 
+          v-if="form.name" 
+          doctype="Expense Claim" 
+          :docname="form.name" 
+          :readonly="isSubmitted" 
+        />
+
+        <!-- Document History Section (only in edit mode) -->
+        <DocumentHistory v-if="isEditMode && form.name" :docname="form.name" />
       </div>
     </div>
   </MainLayout>
@@ -151,9 +172,11 @@
 
 <script setup>
 import MainLayout from '@/components/MainLayout.vue'
+import DocumentHistory from '@/components/DocumentHistory.vue'
+import FileAttachments from '@/components/FileAttachments.vue'
 import { ref, reactive, onMounted, computed, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { createResource, Button, Dialog } from 'frappe-ui'
+import { createResource, Button, Dialog, Autocomplete } from 'frappe-ui'
 import { session } from '@/data/session'
 import { Plus, Trash2, Printer } from 'lucide-vue-next'
 import * as XLSX from 'xlsx'
@@ -165,6 +188,8 @@ const route = useRoute()
 const expenseTypes = ref([])
 const costCenters = ref([])
 const projects = ref([])
+const costCenterQuery = ref('')
+const projectQuery = ref('')
 const submitting = ref(false)
 const error = ref('')
 const fileInput = ref(null)
@@ -248,18 +273,24 @@ const grandTotal = computed(() => {
     return totalAmount.value + totalVat.value
 })
 
+const preventInvalidInput = (e) => {
+    if (['-', '+', 'e', 'E'].includes(e.key)) {
+        e.preventDefault()
+    }
+}
+
 const fetchCostCenters = async (company) => {
+    // Note: API currently uses user default company. If passing company is needed, update API.
     const call = createResource({
-        url: 'frappe.client.get_list',
-        params: {
-            doctype: 'Cost Center',
-            filters: { is_group: 0 },
-            fields: ['name']
-        }
+        url: 'employee_portal.api.get_cost_centers',
+        method: 'GET'
     })
     try {
         const data = await call.fetch()
-        costCenters.value = data
+        costCenters.value = data.map(c => ({
+            ...c,
+            label: c.label.length > 60 ? c.label.substring(0, 60) + '...' : c.label
+        }))
     } catch (e) {
         console.error('Failed to fetch cost centers', e)
     }
@@ -267,17 +298,45 @@ const fetchCostCenters = async (company) => {
 
 const fetchProjects = async () => {
     const call = createResource({
-        url: 'frappe.client.get_list',
-        params: {
-            doctype: 'Project',
-            filters: { status: 'Open' },
-            fields: ['name', 'project_name']
-        }
+        url: 'employee_portal.api.get_projects',
+        method: 'GET'
     })
     try {
-        projects.value = await call.fetch()
+        const data = await call.fetch()
+        projects.value = data.map(p => ({
+            ...p,
+            label: p.label.length > 60 ? p.label.substring(0, 60) + '...' : p.label
+        }))
     } catch (e) {
         console.error('Failed to fetch projects', e)
+    }
+}
+
+const handleCostCenterSelect = (val) => {
+    if (val) {
+        form.cost_center = val.value
+        costCenterQuery.value = val.label
+    }
+}
+
+const handleProjectSelect = (val) => {
+    if (val) {
+        form.project = val.value
+        projectQuery.value = val.label
+    }
+}
+
+const updateQueriesFromForm = () => {
+    if (form.cost_center && costCenters.value.length) {
+        const found = costCenters.value.find(c => c.value === form.cost_center)
+        if (found) costCenterQuery.value = found.label
+        else costCenterQuery.value = form.cost_center
+    }
+    
+    if (form.project && projects.value.length) {
+         const found = projects.value.find(p => p.value === form.project)
+         if (found) projectQuery.value = found.label
+         else projectQuery.value = form.project
     }
 }
 
@@ -318,6 +377,7 @@ const fetchExpense = async (name) => {
         
         await fetchCostCenters(doc.company)
         await fetchProjects()
+        updateQueriesFromForm()
         
         nextTick(() => {
             isDirty.value = false
@@ -355,9 +415,10 @@ const fetchDefaults = async () => {
             })
             const comp = await defaultsCall.fetch()
             form.cost_center = comp.cost_center || '' 
-            
-            fetchCostCenters(form.company)
-            fetchProjects()
+             
+            await fetchCostCenters(form.company)
+            await fetchProjects()
+            updateQueriesFromForm()
         }
         nextTick(() => {
              isDirty.value = false
@@ -639,7 +700,7 @@ const printExpense = () => {
     window.open(url, '_blank')
 }
 
-const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'AED' }).format(val)
+const formatCurrency = (val) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val)
 
 const loadExcelJS = () => {
     return new Promise((resolve, reject) => {

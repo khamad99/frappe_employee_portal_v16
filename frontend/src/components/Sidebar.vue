@@ -84,6 +84,13 @@ const navigation = computed(() => {
         enabled: settings.data?.enable_expense_claim !== 0 && session.permissions?.can_expense !== false
     },
     { 
+        name: 'Petty Cash', 
+        href: '/petty-cash', 
+        icon: DollarSign, 
+        current: route.path.startsWith('/petty-cash'),
+        enabled: settings.data?.enable_petty_cash !== 0 && session.permissions?.can_petty_cash
+    },
+    { 
         name: 'Attendance', 
         href: '/attendance', 
         icon: Calendar, 
