@@ -37,6 +37,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/petty-cash',
+    name: 'PettyCashLedger',
+    component: () => import('@/pages/PettyCashLedger.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/expense/:id',
     name: 'ExpenseEdit',
     component: () => import('@/pages/ExpenseNew.vue'),
@@ -46,6 +52,12 @@ const routes = [
     path: '/attendance',
     name: 'AttendanceList',
     component: () => import('@/pages/AttendanceList.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/assets',
+    name: 'AssetList',
+    component: () => import('@/pages/AssetList.vue'),
     meta: { requiresAuth: true },
   },
 ]
