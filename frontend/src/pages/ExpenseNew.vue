@@ -88,7 +88,7 @@
                                     </select>
                                 </td>
                                 <td class="px-3 py-2 align-top">
-                                    <input type="number" step="0.01" min="0" v-model="row.amount" @keydown="preventInvalidInput" :disabled="isSubmitted" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md disabled:bg-gray-100 disabled:text-gray-500" placeholder="0.00" />
+                                    <input type="number" step="0.01" min="0" v-model="row.amount" @input="updateVat(row)" @keydown="preventInvalidInput" :disabled="isSubmitted" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md disabled:bg-gray-100 disabled:text-gray-500" placeholder="0.00" />
                                 </td>
                                  <td class="px-3 py-2 align-top">
                                     <input type="number" step="0.01" min="0" v-model="row.vat_amount" @keydown="preventInvalidInput" :disabled="isSubmitted" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md disabled:bg-gray-100 disabled:text-gray-500" placeholder="0.00" />
@@ -259,6 +259,15 @@ const removeRow = (index) => {
              description: ''
         })
     }
+}
+
+const updateVat = (row) => {
+    if (row.amount === '' || row.amount === null || isNaN(parseFloat(row.amount))) {
+        row.vat_amount = ''
+        return
+    }
+    const amt = parseFloat(row.amount)
+    row.vat_amount = parseFloat((amt * 0.05).toFixed(2))
 }
 
 const totalAmount = computed(() => {
@@ -434,7 +443,8 @@ const fetchExpenseTypes = async () => {
         url: 'frappe.client.get_list',
         params: {
             doctype: 'Expense Claim Type',
-            fields: ['name']
+            fields: ['name'],
+            limit_page_length: 0
         }
     })
     try {

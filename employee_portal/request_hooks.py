@@ -41,10 +41,14 @@ def check_portal_restriction():
 		"/private/files",
 		"/api/method/employee_portal",
 		"/api/method/frappe.auth", # essential for login/pwd change
+        "/api/method/frappe.auth.get_logged_user", # explicitly allow
 		"/api/method/login", # Standard login
 		"/api/method/frappe.client.get_value", # often used by client scripts
 		"/api/method/frappe.client.get", # often used by client scripts
 		"/api/method/frappe.client.get_list", # often used by client scripts
+		"/api/method/frappe.client.insert", # Used by portal
+		"/api/method/frappe.desk.form.save.savedocs", # Used by portal
+        "/api/method/frappe.utils.print_format.download_pdf", # Used by portal
 		"/api/method/logout",
 		"/api/method/upload_file", # For file attachments
 		"/socket.io", # Realtime updates
@@ -60,7 +64,6 @@ def check_portal_restriction():
 	is_ajax = (frappe.request.headers.get("X-Requested-With") == "XMLHttpRequest") or frappe.request.content_type == "application/json"
 	
 	if is_ajax or request_path.startswith("/api/"):
-		frappe.response["type"] = "binary" 
 		# Setting type to binary/json prevents HTML rendering
 		# Actually, standard failure is 403
 		frappe.throw(_("Access Restricted: You are limited to the User Portal."), frappe.PermissionError)
