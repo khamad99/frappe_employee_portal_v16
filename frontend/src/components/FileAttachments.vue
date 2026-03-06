@@ -49,6 +49,7 @@
         @change="handleUpload" 
         class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         :disabled="uploading"
+        accept=".pdf, image/png, image/jpeg, image/jpg"
         multiple
       />
       <div 

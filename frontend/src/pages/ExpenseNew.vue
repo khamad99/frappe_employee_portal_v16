@@ -676,14 +676,10 @@ const saveExpense = async (requestedStatus) => {
             break
 
         } catch (e) {
-            console.error(`Attempt ${retries + 1} failed:`, e)
-            
-            // Check for Timestamp Mismatch errors (417 or error messages)
             const isTimestampError = (e.messages && e.messages.some(m => m && m.includes('TimestampMismatchError'))) || 
                                      (e.message && e.message.includes('TimestampMismatchError')) ||
                                      (e.exc_type && e.exc_type === 'TimestampMismatchError') ||
-                                     (e.message && e.message.includes('modified after you have opened it')) ||
-                                     (e.status === 417) || (e.statusCode === 417)
+                                     (e.message && e.message.includes('modified after you have opened it'))
 
             if (isTimestampError && retries < maxRetries - 1) {
                 console.log("Timestamp mismatch detected. Retrying...")
@@ -692,11 +688,32 @@ const saveExpense = async (requestedStatus) => {
             }
 
             // Real Error
-            let msg = e.message
-            if (e.messages && e.messages.length > 0) {
-                msg = e.messages.join('\n')
+            let msg = ''
+            
+            // Try to extract Frappe's _server_messages
+            try {
+                if (e.messages && Array.isArray(e.messages) && e.messages.length > 0) {
+                    msg = e.messages.join('\n')
+                } else if (e._server_messages) {
+                    let parsed = typeof e._server_messages === 'string' ? JSON.parse(e._server_messages) : e._server_messages
+                    msg = parsed.map(m => {
+                        let inner = JSON.parse(m)
+                        return inner.message || inner
+                    }).join('\n')
+                } else if (e.response && e.response._server_messages) {
+                    let parsed = typeof e.response._server_messages === 'string' ? JSON.parse(e.response._server_messages) : e.response._server_messages
+                    msg = parsed.map(m => {
+                        let inner = JSON.parse(m)
+                        return inner.message || inner
+                    }).join('\n')
+                } else {
+                    msg = e.message || e.exc_type || 'Failed to save expense claim.'
+                }
+            } catch (parseErr) {
+                msg = e.message || 'Failed to parse error message.'
             }
-            error.value = msg || 'Failed to save expense claim.'
+            
+            error.value = msg
             break // Exit loop on non-retriable error
         }
     } // end while

@@ -54,7 +54,7 @@
                     }}
                   </span>
                   <button 
-                      v-if="expense.docstatus === 0 && !['Need Review', 'Submitted', 'Approved'].includes(expense.workflow_state)" 
+                      v-if="expense.docstatus === 0 && !['Need Review', 'Submitted', 'Approved', 'Reviewed'].includes(expense.workflow_state)" 
                       @click.stop="deleteExpense(expense.name)" 
                       class="ml-3 text-red-400 hover:text-red-600 focus:outline-none"
                       title="Delete Claim"
