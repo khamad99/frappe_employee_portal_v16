@@ -1,10 +1,15 @@
 import frappe
 from frappe import _
+from frappe.utils import now_datetime, get_datetime_str, add_days
+import pytz
+from datetime import datetime, timedelta
+
+logger = frappe.logger("portal_restriction")
 
 def check_portal_restriction():
 	"""
 	Intercept requests and redirect portal-only users away from backend.
-	
+
 	Allowed paths for portal-only users:
 	- /portal/*
 	- /login
@@ -30,7 +35,7 @@ def check_portal_restriction():
 		return
 
 	request_path = frappe.request.path
-	
+
 	# Whitelisted prefixes
 	allowed_prefixes = (
 		"/portal",
@@ -41,14 +46,14 @@ def check_portal_restriction():
 		"/private/files",
 		"/api/method/employee_portal",
 		"/api/method/frappe.auth", # essential for login/pwd change
-        "/api/method/frappe.auth.get_logged_user", # explicitly allow
+		"/api/method/frappe.auth.get_logged_user", # explicitly allow
 		"/api/method/login", # Standard login
 		"/api/method/frappe.client.get_value", # often used by client scripts
 		"/api/method/frappe.client.get", # often used by client scripts
 		"/api/method/frappe.client.get_list", # often used by client scripts
 		"/api/method/frappe.client.insert", # Used by portal
 		"/api/method/frappe.desk.form.save.savedocs", # Used by portal
-        "/api/method/frappe.utils.print_format.download_pdf", # Used by portal
+		"/api/method/frappe.utils.print_format.download_pdf", # Used by portal
 		"/api/method/logout",
 		"/api/method/upload_file", # For file attachments
 		"/socket.io", # Realtime updates
@@ -57,15 +62,21 @@ def check_portal_restriction():
 	if request_path == "/" or request_path.startswith(allowed_prefixes):
 		return
 
+	# Explicitly block /api/resource/* (REST API) - not safe for portal users
+	if request_path.startswith("/api/resource/"):
+		logger.warning(f"Portal restriction: REST API access blocked for {frappe.session.user} on {request_path}")
+		frappe.throw(_("Access Restricted: REST API access is not allowed from the Portal."), frappe.PermissionError)
+
 	# If we are here, the path is restricted
-	
+
 	# Handle AJAX/API requests differently (return JSON error/action)
 	# is_xhr is deprecated/removed in newer Werkzeug
 	is_ajax = (frappe.request.headers.get("X-Requested-With") == "XMLHttpRequest") or frappe.request.content_type == "application/json"
-	
+
 	if is_ajax or request_path.startswith("/api/"):
 		# Setting type to binary/json prevents HTML rendering
 		# Actually, standard failure is 403
+		logger.warning(f"Portal restriction: blocked {frappe.session.user} on {request_path}")
 		frappe.throw(_("Access Restricted: You are limited to the User Portal."), frappe.PermissionError)
 
 	# Redirect to portal for standard Browser navigation

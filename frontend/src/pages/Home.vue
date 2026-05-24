@@ -19,14 +19,18 @@
              <div class="bg-white overflow-hidden shadow rounded-lg p-5" v-if="session.permissions?.can_attendance_card">
                  <h3 class="text-lg font-medium text-gray-900">Today's Attendance</h3>
                  <div class="mt-4">
+                     <!-- Error Message -->
+                     <div v-if="error" class="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-md">
+                       {{ error }}
+                     </div>
                      <!-- Slider Component -->
-                     <CheckinSlider 
-                        :label="sliderLabel" 
+                     <CheckinSlider
+                        :label="sliderLabel"
                         :center-text="centerText"
                         :status="checkinStatus"
                         :loading="loadingCheckin"
                         :disabled="isRestricted"
-                        @confirmed="handleCheckin" 
+                        @confirmed="handleCheckin"
                      />
                  </div>
              </div>
@@ -65,6 +69,7 @@ const todayCheckins = ref([])
 const loadingCheckin = ref(true)
 const currentTime = ref(new Date())
 const settings = ref({ timezone_offset: 0 })
+const error = ref('')
 let timer = null
 
 // Fetch timezone settings
@@ -309,16 +314,27 @@ const fetchLastCheckin = async () => {
 
 const handleCheckin = async (direction) => {
     if (!session.employee) return
-    
+
     // Direction: 'IN' (Slide Right) or 'OUT' (Slide Left)
     const logType = direction
-    
+
     // Safety
     if (logType === 'IN' && checkinStatus.value === 'IN') return
     if (logType === 'OUT' && checkinStatus.value === 'OUT') return
     if (isRestricted.value && logType === 'IN') {
-        alert("You are allowed only one check-in per day.")
+        error.value = "You are allowed only one check-in per day."
         return
+    }
+
+    // Fetch server time for consistent timezone handling
+    let serverTime = null
+    try {
+        const timeCall = createResource({ url: 'employee_portal.api.get_server_time' })
+        const timeData = await timeCall.fetch()
+        serverTime = new Date(timeData.server_time)
+    } catch (e) {
+        console.error('Failed to fetch server time, using fallback', e)
+        serverTime = new Date()
     }
 
     const call = createResource({
@@ -328,17 +344,17 @@ const handleCheckin = async (direction) => {
                 doctype: 'Employee Checkin',
                 employee: session.employee.name,
                 log_type: logType,
-                time: new Date().toISOString().replace('T', ' ').split('.')[0]
+                time: serverTime.toISOString().replace('T', ' ').split('.')[0]
             }
         }
     })
-    
+
     try {
         await call.fetch()
         await fetchLastCheckin()
     } catch (e) {
         console.error(e)
-        alert('Check-in action failed')
+        error.value = 'Check-in action failed'
     }
 }
 

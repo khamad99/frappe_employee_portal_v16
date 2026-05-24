@@ -3,7 +3,9 @@ from frappe.utils import flt, getdate, today
 from erpnext.accounts.utils import get_balance_on
 from erpnext.accounts.report.general_ledger.general_ledger import get_gl_entries
 
-@frappe.whitelist(allow_guest=True)
+logger = frappe.logger("employee_portal")
+
+@frappe.whitelist()
 def get_portal_settings():
     # Fetch with ignore_permissions since standard users won't have read access to the settings DocType
     doc = frappe.get_doc("Employee Portal Settings", "Employee Portal Settings")
@@ -42,7 +44,6 @@ def get_user_permissions():
     
     # Resolve Effective Settings (User > Global)
     enable_attendance = user_settings.enable_attendance if user_settings else global_settings.enable_attendance
-    enable_attendance = user_settings.enable_attendance if user_settings else global_settings.enable_attendance
     enable_attendance_card = user_settings.enable_attendance_card if user_settings else global_settings.enable_attendance_card
     enable_expense_claim = user_settings.enable_expense_claim if user_settings else global_settings.enable_expense_claim
     enable_leave = user_settings.enable_leave if user_settings else global_settings.enable_leave
@@ -57,7 +58,6 @@ def get_user_permissions():
 
     return {
         "can_expense": bool(enable_expense_claim) and frappe.has_permission("Expense Claim", "read"),
-        "can_leave": bool(enable_leave) and frappe.has_permission("Leave Application", "read"),
         "can_leave": bool(enable_leave) and frappe.has_permission("Leave Application", "read"),
         "can_attendance": bool(enable_attendance) and frappe.has_permission("Attendance", "read"),
         "can_attendance_card": bool(enable_attendance_card),
@@ -130,9 +130,19 @@ def update_user_portal_settings(user, settings):
     """
     if not (frappe.has_permission("User", "write") or "HR Manager" in frappe.get_roles()):
          frappe.throw("Not permitted", frappe.PermissionError)
-    
+
     settings_dict = frappe.parse_json(settings)
-    
+
+    # Validate allowed keys to prevent privilege escalation
+    allowed_keys = {
+        "enable_attendance", "enable_attendance_card", "enable_expense_claim",
+        "enable_leave", "enable_petty_cash", "petty_cash_account", "restrict_to_portal"
+    }
+    invalid_keys = set(settings_dict.keys()) - allowed_keys
+    if invalid_keys:
+        logger.warning(f"update_user_portal_settings: invalid keys rejected: {invalid_keys}")
+        frappe.throw(f"Invalid settings keys: {list(invalid_keys)}")
+
     if not frappe.db.exists("Employee Portal User Settings", user):
         doc = frappe.get_doc({
             "doctype": "Employee Portal User Settings",
@@ -144,7 +154,8 @@ def update_user_portal_settings(user, settings):
         doc = frappe.get_doc("Employee Portal User Settings", user)
         doc.update(settings_dict)
         doc.save()
-    
+
+    logger.info(f"User portal settings updated for {user} by {frappe.session.user}")
     return "Saved"
 
 @frappe.whitelist()
@@ -167,6 +178,7 @@ def delete_expense_claim(name):
 
     # If checks pass, delete with ignore_permissions
     frappe.delete_doc("Expense Claim", name, ignore_permissions=True)
+    logger.info(f"Expense Claim {name} deleted by {frappe.session.user}")
     return "Deleted"
 
 @frappe.whitelist()
@@ -302,6 +314,7 @@ def delete_expense_attachment(file_name):
     
     # Delete the file
     frappe.delete_doc("File", file_name, ignore_permissions=True)
+    logger.info(f"Attachment {file_name} deleted from Expense Claim {expense_name} by {frappe.session.user}")
     return "Deleted"
 
 # Force reload
@@ -370,7 +383,24 @@ def get_petty_cash_ledger(from_date=None, to_date=None, cost_center=None, projec
         
     account = settings.petty_cash_account
     company = frappe.defaults.get_user_default("Company")
-    
+
+    # Validate date parameters
+    if from_date:
+        try:
+            from_date = getdate(from_date)
+        except Exception:
+            frappe.throw("Invalid from_date format. Use YYYY-MM-DD")
+    else:
+        from_date = None
+
+    if to_date:
+        try:
+            to_date = getdate(to_date)
+        except Exception:
+            frappe.throw("Invalid to_date format. Use YYYY-MM-DD")
+    else:
+        to_date = None
+
     filters = frappe._dict({
         "company": company,
         "account": account,
@@ -481,7 +511,7 @@ def get_cost_centers():
 @frappe.whitelist()
 def get_projects():
     """Fetch Projects for dropdown (ignore permissions safe for dropdown)"""
-    return frappe.get_all("Project", 
+    return frappe.get_all("Project",
         filters={
             "status": "Open",
             # "company": frappe.defaults.get_user_default("Company") # Projects might be cross-company, but usually filtered
@@ -491,6 +521,11 @@ def get_projects():
         order_by="name asc",
         ignore_permissions=True
     )
+
+@frappe.whitelist()
+def get_server_time():
+    """Returns current server datetime for consistent time handling across timezones."""
+    return {"server_time": frappe.utils.now_datetime()}
 
 @frappe.whitelist()
 def get_employee_assets():

@@ -119,10 +119,34 @@ const fetchAttachments = async () => {
 const handleUpload = async (e) => {
   const files = e.target.files
   if (!files || files.length === 0) return
-  
+
+  // File validation: size limit (5MB) and allowed types
+  const MAX_SIZE = 5 * 1024 * 1024 // 5MB
+  const ALLOWED_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg']
+  const ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg']
+
+  for (const file of files) {
+    // Check file size
+    if (file.size > MAX_SIZE) {
+      error.value = `File "${file.name}" exceeds maximum size of 5MB`
+      return
+    }
+    // Check MIME type
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      error.value = `File "${file.name}" has unsupported type: ${file.type}`
+      return
+    }
+    // Check extension as secondary validation
+    const ext = file.name.toLowerCase().substring(file.name.lastIndexOf('.'))
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      error.value = `File "${file.name}" has unsupported extension: ${ext}`
+      return
+    }
+  }
+
   uploading.value = true
   error.value = ''
-  
+
   try {
     for (const file of files) {
       const formData = new FormData()
@@ -130,7 +154,7 @@ const handleUpload = async (e) => {
       formData.append('doctype', props.doctype)
       formData.append('docname', props.docname)
       formData.append('is_private', 1)
-      
+
       const response = await fetch('/api/method/frappe.handler.upload_file', {
         method: 'POST',
         body: formData,
@@ -138,16 +162,16 @@ const handleUpload = async (e) => {
           'X-Frappe-CSRF-Token': window.csrf_token
         }
       })
-      
+
       if (!response.ok) {
         const data = await response.json()
         throw new Error(data.message || 'Upload failed')
       }
     }
-    
+
     // Refresh attachment list
     await fetchAttachments()
-    
+
   } catch (e) {
     console.error('Upload failed', e)
     error.value = e.message || 'Failed to upload file'
