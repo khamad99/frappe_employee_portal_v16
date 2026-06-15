@@ -150,7 +150,7 @@ scheduler_events = {
     # 	"employee_portal.tasks.daily"
     # ],
     "hourly": [
-        "employee_portal.auto_checkout.auto_checkout_employees"
+        "employee_portal.employee_portal.auto_checkout.auto_checkout_employees"
     ],
 }
 

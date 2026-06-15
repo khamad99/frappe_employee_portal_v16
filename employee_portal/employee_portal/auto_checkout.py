@@ -1,6 +1,6 @@
 
 import frappe
-from frappe.utils import now_datetime, get_datetime_str, add_days
+from frappe.utils import now_datetime, get_datetime_str, add_days, flt
 import pytz
 from datetime import datetime, timedelta
 
