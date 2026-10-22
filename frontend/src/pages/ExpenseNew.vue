@@ -656,6 +656,9 @@ const saveExpense = async (requestedStatus) => {
             form.creation = savedDoc.creation
             form.owner = savedDoc.owner
             form.is_paid = savedDoc.is_paid
+            // The server sets the cost centre from the project on save
+            if (savedDoc.cost_center) form.cost_center = savedDoc.cost_center
+            updateQueriesFromForm()
             
             // Reset dirty flag
             nextTick(() => {
